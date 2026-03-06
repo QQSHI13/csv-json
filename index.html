@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0d1117">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%230d1117' rx='40'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%93%8A%3C/text%3E%3C/svg%3E">
     <title>CSV to JSON Converter - Transform Data Instantly</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%230d1117' rx='20'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle'%3E📊%3C/text%3E%3C/svg%3E">
     <style>
@@ -169,6 +172,15 @@
             color: var(--text-secondary);
             font-size: 0.8rem;
             border-top: 1px solid var(--border);
+        }
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s;
+        }
+        footer a:hover {
+            border-bottom-color: var(--accent);
         }
         @media (max-width: 768px) {
             .container { flex-direction: column; }
@@ -462,6 +474,11 @@
         csvInput.value = 'name,age,city,active\nJohn Doe,30,New York,true\nJane Smith,25,San Francisco,false\nBob Johnson,35,Chicago,true';
         showTextarea();
         convert();
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
     </script>
 </body>
 </html>
