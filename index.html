@@ -8,6 +8,7 @@
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%230d1117' rx='40'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%93%8A%3C/text%3E%3C/svg%3E">
     <title>CSV to JSON Converter - Transform Data Instantly</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%230d1117' rx='20'/%3E%3Ctext x='50' y='65' font-size='50' text-anchor='middle'%3E📊%3C/text%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <style>
         :root {
             --bg: #0d1117;
@@ -295,11 +296,21 @@
         });
 
         function handleFile(file) {
+            // Check file size (limit to 10MB)
+            const MAX_SIZE = 10 * 1024 * 1024;
+            if (file.size > MAX_SIZE) {
+                showError('File too large. Maximum size is 10MB.');
+                return;
+            }
+            
             const reader = new FileReader();
             reader.onload = (e) => {
                 csvInput.value = e.target.result;
                 showTextarea();
                 convert();
+            };
+            reader.onerror = () => {
+                showError('Failed to read file. Please try again.');
             };
             reader.readAsText(file);
         }
@@ -318,7 +329,9 @@
         }
 
         function parseCSV(text) {
-            const lines = text.trim().split('\n');
+            // Handle Windows line endings (\r\n) and old Mac (\r)
+            const normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            const lines = normalizedText.trim().split('\n');
             if (lines.length === 0) return { headers: [], data: [] };
 
             const delimiter = text.includes('\t') ? '\t' : ',';
@@ -351,7 +364,8 @@
 
             const rows = lines.map(parseLine);
             const headers = rows[0];
-            const data = rows.slice(1).filter(row => row.length > 1 || row[0] !== '');
+            // Filter out empty rows (rows where all fields are empty)
+            const data = rows.slice(1).filter(row => row.some(cell => cell.trim() !== ''));
 
             return { headers, data };
         }
@@ -408,10 +422,72 @@
         }
 
         function syntaxHighlight(json) {
-            return json.replace(/(".*?"):/g, '<span class="json-key">$1</span>:')
-                       .replace(/: (".*?")/g, ': <span class="json-string">$1</span>')
-                       .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
-                       .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>');
+            // Use safer token-based highlighting instead of regex
+            let result = '';
+            let inString = false;
+            let stringContent = '';
+            let isKey = true;
+            
+            for (let i = 0; i < json.length; i++) {
+                const char = json[i];
+                const nextChar = json[i + 1];
+                
+                if (char === '"') {
+                    if (!inString) {
+                        inString = true;
+                        stringContent = '';
+                    } else {
+                        // Check for escaped quote
+                        let backslashCount = 0;
+                        let j = i - 1;
+                        while (j >= 0 && json[j] === '\\') {
+                            backslashCount++;
+                            j--;
+                        }
+                        if (backslashCount % 2 === 0) {
+                            // Not escaped - end of string
+                            inString = false;
+                            const spanClass = isKey ? 'json-key' : 'json-string';
+                            result += `<span class="${spanClass}">"${escapeHtml(stringContent)}"</span>`;
+                            isKey = false; // After first value, no more keys at this level
+                        } else {
+                            stringContent += char;
+                        }
+                    }
+                } else if (inString) {
+                    stringContent += char;
+                } else if (/[\[\{,]/.test(char)) {
+                    result += char;
+                    isKey = true; // Reset key detection after opening bracket or comma
+                } else if (char === ':') {
+                    result += char;
+                } else if (/true|false/.test(json.substring(i, i + 4)) || /true|false/.test(json.substring(i, i + 5))) {
+                    const boolMatch = json.substring(i).match(/^(true|false)/);
+                    if (boolMatch) {
+                        result += `<span class="json-boolean">${boolMatch[1]}</span>`;
+                        i += boolMatch[1].length - 1;
+                    } else {
+                        result += char;
+                    }
+                } else if (/\d/.test(char) || (char === '-' && /\d/.test(nextChar))) {
+                    const numMatch = json.substring(i).match(/^-?\d+\.?\d*/);
+                    if (numMatch) {
+                        result += `<span class="json-number">${numMatch[0]}</span>`;
+                        i += numMatch[0].length - 1;
+                    } else {
+                        result += char;
+                    }
+                } else {
+                    result += char;
+                }
+            }
+            return result;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function updateStats(rows, cols, bytes) {
@@ -456,8 +532,12 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'converted.json';
+            // Use original filename if available, otherwise default
+            const originalName = fileInput.files[0]?.name?.replace(/\.csv$/i, '') || 'converted';
+            a.download = `${originalName}.json`;
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
 

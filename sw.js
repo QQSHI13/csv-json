@@ -1,7 +1,9 @@
 const CACHE_NAME = 'csv-json-v1';
 const urlsToCache = [
   './',
-  './index.html'
+  './index.html',
+  './favicon.svg',
+  './manifest.json'
 ];
 
 self.addEventListener('install', (event) => {
